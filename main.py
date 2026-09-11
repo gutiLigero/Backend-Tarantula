@@ -88,7 +88,19 @@ def register(user_data: UserRegister):
 @app.post("/auth/login")
 def login(credentials: UserLogin):
     user = database.obtener_usuario_por_email(credentials.email)
-    if not user or not bcrypt.checkpw(credentials.password.encode("utf-8"), str(user["password"]).encode("utf-8")):
+    if not user:
+        raise HTTPException(status_code=400, detail="Authentication failed. Invalid credentials.")
+
+    db_password = str(user["password"])
+    
+    try:
+        # Intenta validar asumiendo que es un Hash de seguridad (las cuentas nuevas)
+        is_valid = bcrypt.checkpw(credentials.password.encode("utf-8"), db_password.encode("utf-8"))
+    except ValueError:
+        # Si arroja error, asume que es una contraseña manual en texto plano (tu cuenta admin antigua)
+        is_valid = (credentials.password == db_password)
+
+    if not is_valid:
         raise HTTPException(status_code=400, detail="Authentication failed. Invalid credentials.")
 
     token = jwt.encode(
