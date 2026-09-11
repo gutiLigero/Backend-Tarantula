@@ -117,7 +117,22 @@ def login(credentials: UserLogin):
 @app.get("/catalog")
 def get_catalog():
     items = database.obtener_catalogo()
-    return [i for i in items if str(i.get("nombre_producto", "")).strip()]
+    productos_disponibles = []
+    
+    for i in items:
+        nombre = str(i.get("nombre_producto", "")).strip()
+        
+        # Leemos el stock. Si la celda está vacía o tiene texto raro, asumimos 0
+        try:
+            stock = int(i.get("stock", 0))
+        except (ValueError, TypeError):
+            stock = 0
+            
+        # Solo agregamos el producto si tiene nombre y su stock es mayor a 0
+        if nombre and stock > 0:
+            productos_disponibles.append(i)
+            
+    return productos_disponibles
 
 @app.post("/orders/lab")
 def create_lab_order(order: LabOrderCreate, user: dict = Depends(get_current_user)):
