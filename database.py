@@ -23,9 +23,17 @@ def get_sheet(name):
     sheet_id = os.environ.get("SPREADSHEET_ID")
     return get_client().open_by_key(sheet_id).worksheet(name)
 
+def get_safe_records(ws):
+    """
+    Función auxiliar para leer registros ignorando cualquier columna vacía a la derecha.
+    Evita el error de 'the header row in the worksheet contains duplicates: ['']'
+    """
+    headers = [h for h in ws.row_values(1) if h.strip()]
+    return ws.get_all_records(expected_headers=headers)
+
 def registrar_usuario(nombre, email, password_hash, telefono, rol="cliente"):
     ws = get_sheet("usuarios")
-    records = ws.get_all_records()
+    records = get_safe_records(ws)
     
     for row in records:
         if row.get("email") == email:
@@ -36,25 +44,28 @@ def registrar_usuario(nombre, email, password_hash, telefono, rol="cliente"):
     return True
 
 def obtener_usuario_por_email(email):
-    records = get_sheet("usuarios").get_all_records()
+    ws = get_sheet("usuarios")
+    records = get_safe_records(ws)
     for row in records:
         if row.get("email") == email:
             return row
     return None
 
 def obtener_usuario_por_id(user_id):
-    records = get_sheet("usuarios").get_all_records()
+    ws = get_sheet("usuarios")
+    records = get_safe_records(ws)
     for row in records:
         if str(row.get("id")) == str(user_id):
             return row
     return None
 
 def obtener_catalogo():
-    return get_sheet("catalogo").get_all_records()
+    ws = get_sheet("catalogo")
+    return get_safe_records(ws)
 
 def guardar_pedido(user_id, item_solicitado, cantidad, tipo_servicio, observaciones):
     ws = get_sheet("pedidos")
-    records = ws.get_all_records()
+    records = get_safe_records(ws)
     
     nuevo_id = max([int(r.get("id", 0)) for r in records if str(r.get("id", "")).isdigit()] + [0]) + 1
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -65,12 +76,16 @@ def guardar_pedido(user_id, item_solicitado, cantidad, tipo_servicio, observacio
     ])
 
 def obtener_pedidos_usuario(user_id):
-    records = get_sheet("pedidos").get_all_records()
+    ws = get_sheet("pedidos")
+    records = get_safe_records(ws)
     return [r for r in records if str(r.get("user_id")) == str(user_id)]
 
 def obtener_todos_pedidos():
-    pedidos = get_sheet("pedidos").get_all_records()
-    usuarios = get_sheet("usuarios").get_all_records()
+    ws_pedidos = get_sheet("pedidos")
+    pedidos = get_safe_records(ws_pedidos)
+    
+    ws_usuarios = get_sheet("usuarios")
+    usuarios = get_safe_records(ws_usuarios)
     
     df_pedidos = pd.DataFrame(pedidos)
     df_usuarios = pd.DataFrame(usuarios)
